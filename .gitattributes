@@ -1,0 +1,2 @@
+# Override Github's project language detection by overriding other file types
+*.py linguist-language=Clojure
