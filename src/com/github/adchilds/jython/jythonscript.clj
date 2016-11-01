@@ -47,32 +47,29 @@
 (defmulti execute
   "
   Executes the given Jython script with optional arguments passed to the
-  script at runtime.
+  script at runtime. This function, given a file argument will delegate
+  to the corresponding function that handles that type of argument. Current
+  supported file arguments are as follows:
 
-  :param file
-  :param args
+  * String - a relative or full path of a file
+  * File - a File object
+  * InputStream - a File's stream
+
+  :param file one of the supported file type arguments
+  :param args arguments to be passed to the script
   "
   {:added "1.0"}
   (fn ([file & args] (class file))))
 
 (defmethod execute String [path & args]
-  "
-
-  "
   (let [file-stream (io/input-stream path)]
     (apply execute file-stream args)))
 
 (defmethod execute File [file & args]
-  "
-
-  "
   (let [file-stream (io/input-stream file)]
     (apply execute file-stream args)))
 
 (defmethod execute InputStream [stream & args]
-  "
-
-  "
   (let [interpreter (apply update-interpreter-state args)]
     (.execfile interpreter stream)))
 
