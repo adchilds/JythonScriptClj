@@ -2,10 +2,11 @@
   (:require [clojure.java.io :as io])
   (:import (java.io File InputStream)
            (org.python.util PythonInterpreter)
-           (org.python.core PySystemState Py)))
+           (org.python.core PySystemState Py PyString PyBoolean PyInteger PyFloat PyLong)))
 
-;; TODO: Rename?
-(defn parse-arguments
+(def EVALUATION_RESULT_LOCAL_VARIABLE "result")
+
+(defn- get-py-state
   "
   Given an arbitrary sequence of arguments, parses each individually into
   it's corresponding Jython type, before appending the value to the set of
@@ -28,10 +29,10 @@
 
     state))
 
-(defn update-interpreter-state
+(defn- get-interpreter
   "
-  Updates the {@link PythonInterpreter}s {@link PySystemState} by adding the
-  given {@code args}. These arguments may be accessed from within Jython
+  Creates a new {@link PythonInterpreter} with {@link PySystemState} by initializing
+  it with the given arguments. These arguments may be accessed from within Jython
   scripts via the 'sys.argv' parameters, beginning at the second index (i.e.
   sys.argv[1]). Note: the first index is reserved.
 
@@ -41,8 +42,44 @@
   {:added "1.0"}
   ^PythonInterpreter
   [& args]
-  (let [state (apply parse-arguments args)]
+  (let [state (apply get-py-state args)]
     (new PythonInterpreter nil state)))
+
+(defmulti parse-result
+  "
+  Given a PyObject attempts to convert to it's Java representation. If an
+  equivalent java type cannot be found, the original PyObject is returned.
+
+  Current supported type conversions:
+  * PyBoolean to boolean
+  * PyInteger to int
+  * PyString to String
+  * PyFloat to float
+  * PyLong to long
+
+  :param result the object to convert to it's equivalent Java type, if
+  supported; otherwise, returns the unconverted PyObject
+  "
+  {:added "1.0"}
+  (fn [result] (class result)))
+
+(defmethod parse-result PyString [result]
+  (.getString result))
+
+(defmethod parse-result PyBoolean [result]
+  (Py/py2boolean result))
+
+(defmethod parse-result PyInteger [result]
+  (Py/py2int result))
+
+(defmethod parse-result PyFloat [result]
+  (Py/py2float result))
+
+(defmethod parse-result PyLong [result]
+  (Py/py2long result))
+
+(defmethod parse-result :default [result]
+  result)
 
 (defmulti execute
   "
@@ -62,14 +99,37 @@
   (fn ([file & args] (class file))))
 
 (defmethod execute String [path & args]
-  (let [file-stream (io/input-stream path)]
-    (apply execute file-stream args)))
+  (apply execute (io/input-stream path) args))
 
 (defmethod execute File [file & args]
-  (let [file-stream (io/input-stream file)]
-    (apply execute file-stream args)))
+  (apply execute (io/input-stream file) args))
 
 (defmethod execute InputStream [stream & args]
-  (let [interpreter (apply update-interpreter-state args)]
-    (.execfile interpreter stream)))
+  (let [interpreter (apply get-interpreter args)]
+    (.execfile interpreter stream)
+    interpreter))
 
+(defmulti evaluate
+  "
+  Evaluates the given Jython script, returning the result as it's equivalent
+  Java type. Accepts optional arguments to be passed to the script at runtime.
+  Current supported file arguments are as follows:
+
+  * String - a relative or full path of a file
+  * File - a File object
+  * InputStream - a File's stream
+
+  :param file one of the supported file type arguments
+  :param args arguments to be passed to the script
+  "
+  {:added "1.0"}
+  (fn ([file & args] (class file))))
+
+(defmethod evaluate String [path & args]
+  (apply evaluate (io/input-stream path) args))
+
+(defmethod evaluate File [file & args]
+  (apply evaluate (io/input-stream file) args))
+
+(defmethod evaluate InputStream [stream & args]
+  (parse-result (.get (execute stream args) EVALUATION_RESULT_LOCAL_VARIABLE)))

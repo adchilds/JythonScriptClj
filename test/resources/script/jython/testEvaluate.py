@@ -19,8 +19,14 @@ if __name__ == '__main__':
 
     # If arguments were passed to this script, use those
     try:
-        a = sys.argv[1]
-        b = sys.argv[2]
+        sysA = sys.argv[1]
+        sysB = sys.argv[2]
+
+        if sysA is not None:
+            a = sysA
+
+        if b is not None:
+            b = sysB
     except Exception:
         pass
 
