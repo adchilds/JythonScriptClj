@@ -1,7 +1,7 @@
 import sys
 
 
-def multiply(a, b):
+def multiply(a=5, b=5):
     """
     Multiplies two values, 'a' and 'b', together.
 
@@ -19,14 +19,8 @@ if __name__ == '__main__':
 
     # If arguments were passed to this script, use those
     try:
-        sysA = sys.argv[1]
-        sysB = sys.argv[2]
-
-        if sysA is not None:
-            a = sysA
-
-        if b is not None:
-            b = sysB
+        a = sys.argv[1]
+        b = sys.argv[2]
     except Exception:
         pass
 

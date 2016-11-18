@@ -19,12 +19,12 @@
   ^PySystemState
   [& args]
   (let [state (new PySystemState)]
-    (if (or (nil? args) (empty? args))
+    (if (or (nil? args) (empty? args) (every? nil? args))
       ;; Exit early if possible
       state
 
       ;; Update the current PySystemState
-      (doseq [arg (into-array args)]
+      (doseq [arg (into-array (flatten args))]
         (.append (.argv state) (Py/java2py arg))))
 
     state))
@@ -44,6 +44,23 @@
   [& args]
   (let [state (apply get-py-state args)]
     (new PythonInterpreter nil state)))
+
+(defmulti compile-script
+  "
+  Compiles the given Jython script into a PyCode object.
+
+  :param file one of the supported file type arguments
+  :param args arguments to be passed to the script
+  "
+  {:added "1.0"}
+  (fn ([file & args] (class file))))
+
+(defmethod compile-script String [path]
+  (compile-script (io/file path)))
+
+(defmethod compile-script File [file]
+  (let [interpreter (get-interpreter)]
+    (.compile interpreter ^String (slurp file))))
 
 (defmulti parse-result
   "
